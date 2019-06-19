@@ -7,16 +7,16 @@
 class FileWriter : noncopyable
 {
 public:
-	explicit FileWriter(std::string filename);
-	~FileWriter();
-	void append(const char *logline, const size_t len);	// 实际写入文件的函数
-	void flush();
+  explicit FileWriter(std::string filename);
+  ~FileWriter();
+  void append(const char *logline, const size_t len); // 实际写入文件的函数
+  void flush();
 
 private:
-	size_t write(const char *logline, const size_t len);
+  size_t write(const char *logline, const size_t len);
 
-	FILE* fp_;
-	char buf[64*1024];
+  FILE *fp_;
+  char buf[64 * 1024];
 };
 
 #endif

@@ -15,23 +15,23 @@ static const int InitRollFileN = 40960;
 class LogFile : noncopyable
 {
 public:
-	LogFile(const std::string basename, int checkEveryN = InitcheckEveryN, int RollFileN = InitRollFileN);
-	~LogFile();
+  LogFile(const std::string basename, int checkEveryN = InitcheckEveryN, int RollFileN = InitRollFileN);
+  ~LogFile();
 
-	void append(const char *logline, int len);
-	void flush();
-	void rollFile();
+  void append(const char *logline, int len);
+  void flush();
+  void rollFile();
 
 private:
-	std::string getLogFileName(time_t* now);
+  std::string getLogFileName(time_t *now);
 
-    const std::string basename_;
-    const int checkEveryN_;
-	const int RollFileN_;
+  const std::string basename_;
+  const int checkEveryN_;
+  const int RollFileN_;
 
-    int count_checkEveryN;
-	int count_RollFileN;
-    std::unique_ptr<FileWriter> file_;
+  int count_checkEveryN;
+  int count_RollFileN;
+  std::unique_ptr<FileWriter> file_;
 };
 
 #endif

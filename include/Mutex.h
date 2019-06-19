@@ -7,98 +7,100 @@
 #include <assert.h>
 #include <pthread.h>
 
-class MutexLock : noncopyable {
+class MutexLock : noncopyable
+{
 private:
-    pthread_mutex_t mutex_;
-    pid_t holder_;
+  pthread_mutex_t mutex_;
+  pid_t holder_;
 
 public:
-    MutexLock()
-        : holder_(0)
-    {
-        pthread_mutex_init(&mutex_,NULL);
-    }
+  MutexLock()
+      : holder_(0)
+  {
+    pthread_mutex_init(&mutex_, NULL);
+  }
 
-    ~MutexLock(){
-        assert(holder_ == 0);
-        pthread_mutex_destroy(&mutex_);
-    }
+  ~MutexLock()
+  {
+    assert(holder_ == 0);
+    pthread_mutex_destroy(&mutex_);
+  }
 
-    bool isLockedbyThisThread() const
-    {
-        return holder_ == CurrentThread::tid();
-    }
+  bool isLockedbyThisThread() const
+  {
+    return holder_ == CurrentThread::tid();
+  }
 
-    void assertLocked() const
-    {
-        assert(isLockedbyThisThread());
-    }
+  void assertLocked() const
+  {
+    assert(isLockedbyThisThread());
+  }
 
-    void lock()
-    {
-        pthread_mutex_lock(&mutex_);
-        assignHolder();
-    }
+  void lock()
+  {
+    pthread_mutex_lock(&mutex_);
+    assignHolder();
+  }
 
-    void unlock()
-    {
-        unassignHolder();
-        pthread_mutex_unlock(&mutex_);
-    }
+  void unlock()
+  {
+    unassignHolder();
+    pthread_mutex_unlock(&mutex_);
+  }
 
-    pthread_mutex_t* getPthreadMutex() /* non-const */
-    {
-        return &mutex_;
-    }
+  pthread_mutex_t *getPthreadMutex() /* non-const */
+  {
+    return &mutex_;
+  }
 
 private:
-    friend class Condition;
+  friend class Condition;
 
-    class UnassignGuard : noncopyable
+  class UnassignGuard : noncopyable
+  {
+  public:
+    explicit UnassignGuard(MutexLock &owner)
+        : owner_(owner)
     {
-    public:
-        explicit UnassignGuard(MutexLock& owner)
-            : owner_(owner)
-        {
-            owner_.unassignHolder();
-        }
-
-        ~UnassignGuard()
-        {
-            owner_.assignHolder();
-        }
-
-    private:
-        MutexLock &owner_;
-    };
-
-    void unassignHolder()
-    {
-        holder_ = 0;
+      owner_.unassignHolder();
     }
 
-    void assignHolder()
+    ~UnassignGuard()
     {
-        holder_ = CurrentThread::tid();
+      owner_.assignHolder();
     }
+
+  private:
+    MutexLock &owner_;
+  };
+
+  void unassignHolder()
+  {
+    holder_ = 0;
+  }
+
+  void assignHolder()
+  {
+    holder_ = CurrentThread::tid();
+  }
 };
 
 class MutexLockGuard : noncopyable
 {
 public:
-    explicit MutexLockGuard(MutexLock& mutex)
-        : mutex_(mutex)
-    {
-        mutex_.lock();
-    }
+  explicit MutexLockGuard(MutexLock &mutex)
+      : mutex_(mutex)
+  {
+    mutex_.lock();
+  }
 
-    ~MutexLockGuard()
-    {
-        mutex_.unlock();
-    }
-    
+  ~MutexLockGuard()
+  {
+    mutex_.unlock();
+  }
+
 private:
-    MutexLock& mutex_;
+  MutexLock &mutex_;
 };
 
 #endif

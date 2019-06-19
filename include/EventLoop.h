@@ -15,46 +15,47 @@ class EPoller;
 class EventLoop : noncopyable
 {
 public:
-    typedef std::function<void()> Functor;
+  typedef std::function<void()> Functor;
 
-    EventLoop();
-    ~EventLoop();
+  EventLoop();
+  ~EventLoop();
 
-    void loop();
-    void assertInLoopThread()
+  void loop();
+  void assertInLoopThread()
+  {
+    if (!isInLoopThread())
     {
-        if(!isInLoopThread()){
-            abort();
-        }
+      abort();
     }
-    void quit();
+  }
+  void quit();
 
-    bool isInLoopThread() const { return threadId_ == CurrentThread::tid(); }
+  bool isInLoopThread() const { return threadId_ == CurrentThread::tid(); }
 
-    // 管理Channel
-    void updateChannel(std::shared_ptr<Channel> channel);   // 根据Channel's index自动更新Channel关注的事件
-    void removeChannel(std::shared_ptr<Channel> channel);
+  // 管理Channel
+  void updateChannel(std::shared_ptr<Channel> channel); // 根据Channel's index自动更新Channel关注的事件
+  void removeChannel(std::shared_ptr<Channel> channel);
 
-    void wakeup();
-    void queueInLoop(Functor cb);
-    void runInLoop(Functor cb);
+  void wakeup();
+  void queueInLoop(Functor cb);
+  void runInLoop(Functor cb);
 
 private:
-    typedef std::vector<std::shared_ptr<Channel>> ChannelList;
+  typedef std::vector<std::shared_ptr<Channel>> ChannelList;
 
-    void handleWakeup();    // loop唤醒事件
-    void doPendingFunctors();
+  void handleWakeup(); // loop唤醒事件
+  void doPendingFunctors();
 
-    bool looping_;
-    bool quit_;
-    bool callingPendingFunctors_;
-    const pid_t threadId_;
-    std::unique_ptr<EPoller> poller_;
-    int WakeupFd_;
-    std::shared_ptr<Channel> wakeupChannel_;
-    ChannelList activeChannels_;
-    MutexLock mutex_;
-    std::vector<Functor> pendingFunctors_;
+  bool looping_;
+  bool quit_;
+  bool callingPendingFunctors_;
+  const pid_t threadId_;
+  std::unique_ptr<EPoller> poller_;
+  int WakeupFd_;
+  std::shared_ptr<Channel> wakeupChannel_;
+  ChannelList activeChannels_;
+  MutexLock mutex_;
+  std::vector<Functor> pendingFunctors_;
 };
 
 #endif

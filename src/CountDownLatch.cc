@@ -7,23 +7,25 @@ CountDownLatch::CountDownLatch(int count)
 
 void CountDownLatch::wait()
 {
-    MutexLockGuard lock(mutex_);
-    while(count_ > 0){
-        condition_.wait();
-    }
+  MutexLockGuard lock(mutex_);
+  while (count_ > 0)
+  {
+    condition_.wait();
+  }
 }
 
 void CountDownLatch::countDown()
 {
-    MutexLockGuard lock(mutex_);
-    count_--;
-    if(count_ == 0){
-        condition_.notifyall();
-    }
+  MutexLockGuard lock(mutex_);
+  count_--;
+  if (count_ == 0)
+  {
+    condition_.notifyall();
+  }
 }
 
 int CountDownLatch::getCount() const
 {
-    MutexLockGuard lock(mutex_);
-    return count_;
+  MutexLockGuard lock(mutex_);
+  return count_;
 }

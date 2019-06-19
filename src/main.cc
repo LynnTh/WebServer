@@ -12,38 +12,41 @@ using namespace std;
 class EchoServer
 {
 public:
-	EchoServer(EventLoop *loop)
-		: server_(loop,4,1234)
-	{
-		server_.setConnectionCallback(bind(&EchoServer::onConnection,this,_1));
-		server_.setMessageCallback(bind(&EchoServer::onMessage,this,_1,_2));
-	}
+  EchoServer(EventLoop *loop)
+      : server_(loop, 4, 1234)
+  {
+    server_.setConnectionCallback(bind(&EchoServer::onConnection, this, _1));
+    server_.setMessageCallback(bind(&EchoServer::onMessage, this, _1, _2));
+  }
 
-	void start(){
-		server_.start();
-	}
+  void start()
+  {
+    server_.start();
+  }
 
 private:
-	void onConnection(const HTTPConnectionPtr &conn){
-		cout << "onConnection" <<endl;
-	}
+  void onConnection(const HTTPConnectionPtr &conn)
+  {
+    cout << "onConnection" << endl;
+  }
 
-	void onMessage(const HTTPConnectionPtr &conn,Buffer *buf){
-		cout << "onMessage" <<endl;
-	}
+  void onMessage(const HTTPConnectionPtr &conn, Buffer *buf)
+  {
+    cout << "onMessage" << endl;
+  }
 
-	Server server_;
+  Server server_;
 };
 
 int main()
 {
-	string logPath = "./WebServer.log";
-	Logger::setLogFileName(logPath);
-	LOG_INFO << "main start.";
-	EventLoop loop;
-	EchoServer echoserver(&loop);
-	echoserver.start();
-	loop.loop();
+  string logPath = "./WebServer.log";
+  Logger::setLogFileName(logPath);
+  LOG_INFO << "main start.";
+  EventLoop loop;
+  EchoServer echoserver(&loop);
+  echoserver.start();
+  loop.loop();
 
-	return 0;
+  return 0;
 }
