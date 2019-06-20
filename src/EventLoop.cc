@@ -96,13 +96,21 @@ void EventLoop::removeChannel(std::shared_ptr<Channel> channel)
 void EventLoop::wakeup()
 {
   uint64_t tag = 1;
-  ::write(WakeupFd_, &tag, sizeof tag);
+  ssize_t n = ::write(WakeupFd_, &tag, sizeof tag);
+  if (n != sizeof tag)
+  {
+    LOG_INFO << "ERROR : EventLoop::wakeup() writes " << n << " bytes instead of 8";
+  }
 }
 
 void EventLoop::handleWakeup()
 {
   uint64_t tag = 1;
-  ::read(WakeupFd_, &tag, sizeof tag);
+  ssize_t n = ::read(WakeupFd_, &tag, sizeof tag);
+  if (n != sizeof tag)
+  {
+    LOG_INFO << "ERROR : EventLoop::wakeup() reads " << n << " bytes instead of 8";
+  }
 }
 
 void EventLoop::runInLoop(EventLoop::Functor cb)

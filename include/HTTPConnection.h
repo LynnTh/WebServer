@@ -33,6 +33,9 @@ public:
   const std::string name() const { return name_; }
   EventLoop *getLoop() const { return loop_; }
 
+  void send(const std::string &message);
+  void shutdown();
+
 private:
   enum State
   {
@@ -44,8 +47,10 @@ private:
 
   void setState(State s) { state_ = s; }
   void handleRead();
-  // void handleWrite();
+  void handleWrite();
   void handleClose();
+  void sendInLoop(const std::string &message);
+  void shutdownInLoop();
 
   EventLoop *loop_;
   const std::string name_;
@@ -56,6 +61,7 @@ private:
   MessageCallback messageCallback_;
   CloseCallback closeCallback_;
   Buffer inputBuffer_;
+  Buffer outputBuffer_;
 };
 
 #endif

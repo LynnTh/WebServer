@@ -60,6 +60,10 @@ public:
     events_ = kNoneEvent;
     update();
   }
+  bool isWriting() const
+  {
+    return events_ & kWriteEvent;
+  }
 
   int index() { return index_; }
   void set_index(int idx) { index_ = idx; }

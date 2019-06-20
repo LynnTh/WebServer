@@ -15,7 +15,7 @@ EventLoopThread::EventLoopThread()
 EventLoopThread::~EventLoopThread()
 {
   exiting_ = true;
-  if (!loop_ != NULL)
+  if (loop_ != nullptr)
   {
     loop_->quit();
     thread_.join();
