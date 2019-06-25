@@ -17,5 +17,6 @@ typedef std::shared_ptr<HTTPConnection> HTTPConnectionPtr;
 typedef std::function<void(const HTTPConnectionPtr &)> CloseCallback;
 typedef std::function<void(const HTTPConnectionPtr &)> ConnectionCallback;
 typedef std::function<void(const HTTPConnectionPtr &, Buffer *)> MessageCallback;
+typedef std::function<void()> TimerCallback;
 
 #endif
