@@ -4,6 +4,7 @@
 #include "noncopyable.h"
 #include "Callbacks.h"
 #include "Buffer.h"
+#include "HttpAnalysis.h"
 
 #include <memory>
 
@@ -11,11 +12,11 @@ class EventLoop;
 class Channel;
 class Timestamp;
 
-class HTTPConnection : noncopyable,
-                       public std::enable_shared_from_this<HTTPConnection>
+class HTTPConnection : noncopyable, public std::enable_shared_from_this<HTTPConnection>
 {
 public:
   HTTPConnection(EventLoop *loop, const std::string name, int sockfd);
+  ~HTTPConnection();
   void setConnectionCallback(ConnectionCallback &cb)
   {
     connectionCallback_ = cb;
@@ -34,7 +35,10 @@ public:
   EventLoop *getLoop() const { return loop_; }
 
   void send(const std::string &message);
+  void send(Buffer* message);
   void shutdown();
+
+  HttpAnalysis httpanalysis_;
 
 private:
   enum State
@@ -49,7 +53,8 @@ private:
   void handleRead();
   void handleWrite();
   void handleClose();
-  void sendInLoop(const std::string &message);
+  void sendInLoop_string(const std::string &message);
+  void sendInLoop_void(const void* message, size_t len);
   void shutdownInLoop();
 
   EventLoop *loop_;

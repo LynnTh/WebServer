@@ -35,7 +35,8 @@ public:
   // void handThisConn() { loop_->updateChannel(&acceptChannel_); }
 
 private:
-  static const int MAXFDS = 100000;
+  void onConnection(const HTTPConnectionPtr &conn);
+  void onMessage(const HTTPConnectionPtr &conn, Buffer *buf);
 
   typedef std::map<std::string, HTTPConnectionPtr> ConnectionMap;
 
@@ -51,6 +52,7 @@ private:
   int idleFd_;
   int nextConnId_;
   ConnectionMap connections_;
+  std::string path_;
 };
 
 #endif

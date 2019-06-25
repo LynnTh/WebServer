@@ -23,6 +23,12 @@ HTTPConnection::HTTPConnection(EventLoop *loop, std::string name, int sockfd)
       std::bind(&HTTPConnection::handleClose, this));
 }
 
+HTTPConnection::~HTTPConnection()
+{
+  LOG_INFO << "HTTPConnection " << name_ << "closed.";
+  assert(state_ == KDisconnected);
+}
+
 void HTTPConnection::handleRead()
 {
   int saveErrno = 0;
@@ -46,7 +52,7 @@ void HTTPConnection::handleClose()
 {
   loop_->assertInLoopThread();
   LOG_INFO << "HTTPConnection::handleClose state = " << state_;
-  assert(state_ == KConnected || state_ == KDisconnected);
+  assert(state_ == KConnected || state_ == KDisconnecting);
   setState(KDisconnected);
   channel_->disableAll();
   closeCallback_(shared_from_this());
@@ -96,11 +102,28 @@ void HTTPConnection::send(const std::string &message)
 {
   if (state_ == KConnected)
   {
-    loop_->runInLoop(std::bind(&HTTPConnection::sendInLoop, this, message));
+    loop_->runInLoop(std::bind(&HTTPConnection::sendInLoop_string, this, message));
   }
 }
 
-void HTTPConnection::sendInLoop(const std::string &message)
+void HTTPConnection::send(Buffer* buf)
+{
+  if (state_ == KConnected)
+  {
+    if (loop_->isInLoopThread())
+    {
+      sendInLoop_void(buf->peek(), buf->readableBytes());
+      buf->retrieveAll();
+    }
+    else
+    {
+      std::string message = buf->retrieveAllAsString();
+      loop_->runInLoop(std::bind(&HTTPConnection::sendInLoop_string,this,message));
+    }
+  }
+}
+
+void HTTPConnection::sendInLoop_string(const std::string &message)
 {
   loop_->assertInLoopThread();
   ssize_t n = 0;
@@ -127,6 +150,40 @@ void HTTPConnection::sendInLoop(const std::string &message)
   if (static_cast<size_t>(n) < message.size())
   {
     outputBuffer_.append(message.data() + n, message.size() - n);
+    if (!channel_->isWriting())
+    {
+      channel_->enableWriting();
+    }
+  }
+}
+
+void HTTPConnection::sendInLoop_void(const void* data, size_t len)
+{
+  loop_->assertInLoopThread();
+  ssize_t n = 0;
+  if (!channel_->isWriting() && outputBuffer_.readableBytes() == 0)
+  {
+    n = ::write(channel_->fd(), data, len);
+    if (n >= 0)
+    {
+      LOG_INFO << "HTTPConnection::sendInLoop directly write message";
+      if (static_cast<size_t>(n) < len)
+      {
+        LOG_INFO << "I am going to write more data";
+      }
+    }
+    else
+    {
+      n = 0;
+      if (errno != EWOULDBLOCK)
+      {
+        LOG_INFO << "HTTPConnection::sendInLoop Error";
+      }
+    }
+  }
+  if (static_cast<size_t>(n) < len)
+  {
+    outputBuffer_.append(data + n, len - n);
     if (!channel_->isWriting())
     {
       channel_->enableWriting();

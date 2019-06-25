@@ -29,6 +29,15 @@ Server::Server(EventLoop *loop, int threadnum, int port)
   }
   acceptChannel_->setReadCallback(std::bind(&Server::handNewConn, this));
   acceptChannel_->enableReading();
+  setConnectionCallback(std::bind(&Server::onConnection, this, _1));
+  setMessageCallback(std::bind(&Server::onMessage, this, _1, _2));
+
+  char buf[256];
+  if(!getcwd(buf,sizeof buf)){
+    LOG_FATAL << "getcwd failed";
+  }
+  path_.assign(buf);
+  path_ += "/";
 }
 
 Server::~Server()
@@ -114,4 +123,41 @@ void Server::removeConnectionInLoop(const HTTPConnectionPtr &conn)
   EventLoop *ioLoop = conn->getLoop();
   ioLoop->queueInLoop(
       std::bind(&HTTPConnection::connectionDestroyed, conn));
+}
+
+void Server::onConnection(const HTTPConnectionPtr &conn)
+{
+  LOG_INFO << "Server Connecting new one";
+}
+
+void Server::onMessage(const HTTPConnectionPtr &conn, Buffer *buf)
+{
+  if (!conn->httpanalysis_.parseRequest(buf))
+  {
+    if(conn->httpanalysis_.version() == HTTP_10){
+      conn->send("HTTP/1.0 400 Bad Request\r\n\r\n");
+    }
+    else{
+      conn->send("HTTP/1.1 400 Bad Request\r\n\r\n");
+    } 
+    conn->shutdown();
+  }
+  if(!conn->httpanalysis_.findFile(path_))
+  {
+    if(conn->httpanalysis_.version() == HTTP_10){
+      conn->send("HTTP/1.0 404 Not Found!\r\n\r\n");
+    }
+    else{
+      conn->send("HTTP/1.1 400 Not Found!\r\n\r\n");
+    } 
+    conn->shutdown();
+  }
+
+  if (conn->httpanalysis_.gotAll())
+  {
+    Buffer buf;
+    conn->httpanalysis_.appendToBuffer(&buf);
+    conn->send(&buf);
+    conn->httpanalysis_.reset();
+  }
 }
