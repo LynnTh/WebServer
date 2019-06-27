@@ -2,6 +2,8 @@
 #include "Channel.h"
 #include "EPoller.h"
 #include "Logging.h"
+#include "Timer.h"
+#include "Timestamp.h"
 
 #include <assert.h>
 #include <sys/eventfd.h>
@@ -26,6 +28,7 @@ EventLoop::EventLoop()
       callingPendingFunctors_(false),
       threadId_(CurrentThread::tid()),
       poller_(new EPoller(this)),
+      timer_(new Timer(this)),
       WakeupFd_(createEventfd()),
       wakeupChannel_(new Channel(this, WakeupFd_))
 {
@@ -146,4 +149,10 @@ void EventLoop::doPendingFunctors()
     functionList[i]();
   }
   callingPendingFunctors_ = false;
+}
+
+int EventLoop::clock(double interval, TimerCallback cb)
+{
+  Timestamp time(addTime(Timestamp::now(), interval));
+  return timer_->addTimer(std::move(cb), time, interval);
 }

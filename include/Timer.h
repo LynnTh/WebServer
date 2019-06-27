@@ -15,10 +15,20 @@
 
 class EventLoop;
 
+static AtomicInt64 sumN_;
+
 class TimeNode : noncopyable
 {
 public:
-  TimeNode(TimerCallback cb, Timestamp when, double interval);
+  TimeNode(TimerCallback cb, Timestamp when, double interval)
+      : callback_(std::move(cb)),
+        expiration_(when),
+        interval_(interval),
+        repeat_(interval > 0.0),
+        deleted_(false),
+        id_(sumN_.incrementAndGet())
+  {
+  }
 
   void run()
   {
@@ -45,7 +55,7 @@ public:
     return deleted_;
   }
 
-  int id() const
+  int64_t id() const
   {
     return id_;
   }
@@ -58,9 +68,7 @@ private:
   const double interval_;
   const bool repeat_;
   bool deleted_;
-  int id_;
-
-  static AtomicInt64 sumN_;
+  const int64_t id_;
 };
 
 typedef std::shared_ptr<TimeNode> TimeNodePtr;
@@ -94,7 +102,7 @@ private:
 
   EventLoop *loop_;
   const int timerfd_;
-  Channel timerfdChannel_;
+  std::shared_ptr<Channel> timerfdChannel_;
   TimeNodeQueue queue_;
   std::map<int, TimeNodePtr> timers_;
 };

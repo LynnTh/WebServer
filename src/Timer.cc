@@ -56,16 +56,6 @@ void resetTimerfd(int timerfd, Timestamp expiration)
   }
 }
 
-TimeNode::TimeNode(TimerCallback cb, Timestamp when, double interval)
-    : callback_(std::move(cb)),
-      expiration_(when),
-      interval_(interval),
-      repeat_(interval > 0.0),
-      deleted_(false),
-      id_(sumN_.incrementAndGet())
-{
-}
-
 void TimeNode::restart(Timestamp now)
 {
   if (repeat_)
@@ -81,17 +71,17 @@ void TimeNode::restart(Timestamp now)
 Timer::Timer(EventLoop *loop)
     : loop_(loop),
       timerfd_(createTimerfd()),
-      timerfdChannel_(loop_, timerfd_),
+      timerfdChannel_(new Channel(loop_, timerfd_)),
       queue_()
 {
-  timerfdChannel_.setReadCallback(std::bind(&Timer::handleRead, this));
-  timerfdChannel_.enableReading();
+  timerfdChannel_->setReadCallback(std::bind(&Timer::handleRead, this));
+  timerfdChannel_->enableReading();
 }
 
 Timer::~Timer()
 {
-  timerfdChannel_.disableAll();
-  timerfdChannel_.remove();
+  timerfdChannel_->disableAll();
+  timerfdChannel_->remove();
   ::close(timerfd_);
 }
 

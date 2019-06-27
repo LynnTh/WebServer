@@ -6,11 +6,14 @@
 #include "Channel.h"
 #include "EventLoop.h"
 #include "EventLoopThreadPool.h"
+#include "CircularBuffer.h"
 
 #include <memory>
 #include <map>
+#include <unordered_set>
 
 class EventLoopThreadPool;
+class HTTPConnection;
 
 /*
     在main函数中手动loop
@@ -35,10 +38,11 @@ public:
   // void handThisConn() { loop_->updateChannel(&acceptChannel_); }
 
 private:
+  typedef std::map<std::string, HTTPConnectionPtr> ConnectionMap;
+
   void onConnection(const HTTPConnectionPtr &conn);
   void onMessage(const HTTPConnectionPtr &conn, Buffer *buf);
-
-  typedef std::map<std::string, HTTPConnectionPtr> ConnectionMap;
+  void onTimer();
 
   EventLoop *loop_;
   int threadnum_;
@@ -53,6 +57,7 @@ private:
   int nextConnId_;
   ConnectionMap connections_;
   std::string path_;
+  TimeWheel wheel_;
 };
 
 #endif

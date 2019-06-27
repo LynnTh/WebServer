@@ -17,8 +17,8 @@ HTTPConnection::HTTPConnection(EventLoop *loop, std::string name, int sockfd)
 {
   channel_->setReadCallback(
       std::bind(&HTTPConnection::handleRead, this));
-  // channel_->setWriteCallback(
-  //     std::bind(&HTTPConnection::handleWrite, this));
+  channel_->setWriteCallback(
+      std::bind(&HTTPConnection::handleWrite, this));
   channel_->setCloseCallback(
       std::bind(&HTTPConnection::handleClose, this));
 }
@@ -55,7 +55,9 @@ void HTTPConnection::handleClose()
   assert(state_ == KConnected || state_ == KDisconnecting);
   setState(KDisconnected);
   channel_->disableAll();
-  closeCallback_(shared_from_this());
+  HTTPConnectionPtr guardThis(shared_from_this());
+  connectionCallback_(guardThis);
+  closeCallback_(guardThis);
 }
 
 void HTTPConnection::connectionEstablished()
@@ -76,13 +78,14 @@ void HTTPConnection::connectionDestroyed()
     setState(KDisconnected);
     channel_->disableAll();
 
-    // connectionCallback_(shared_from_this());
+    connectionCallback_(shared_from_this());
   }
   channel_->remove();
 }
 
 void HTTPConnection::shutdown()
 {
+  LOG_INFO << "HTTPConnection::shutdown";
   if (state_ == KConnected)
   {
     setState(KDisconnecting);
@@ -106,7 +109,7 @@ void HTTPConnection::send(const std::string &message)
   }
 }
 
-void HTTPConnection::send(Buffer* buf)
+void HTTPConnection::send(Buffer *buf)
 {
   if (state_ == KConnected)
   {
@@ -118,7 +121,7 @@ void HTTPConnection::send(Buffer* buf)
     else
     {
       std::string message = buf->retrieveAllAsString();
-      loop_->runInLoop(std::bind(&HTTPConnection::sendInLoop_string,this,message));
+      loop_->runInLoop(std::bind(&HTTPConnection::sendInLoop_string, this, message));
     }
   }
 }
@@ -157,7 +160,7 @@ void HTTPConnection::sendInLoop_string(const std::string &message)
   }
 }
 
-void HTTPConnection::sendInLoop_void(const void* data, size_t len)
+void HTTPConnection::sendInLoop_void(const void *data, size_t len)
 {
   loop_->assertInLoopThread();
   ssize_t n = 0;
@@ -183,7 +186,7 @@ void HTTPConnection::sendInLoop_void(const void* data, size_t len)
   }
   if (static_cast<size_t>(n) < len)
   {
-    outputBuffer_.append(data + n, len - n);
+    outputBuffer_.append(static_cast<const char *>(data) + n, len - n);
     if (!channel_->isWriting())
     {
       channel_->enableWriting();

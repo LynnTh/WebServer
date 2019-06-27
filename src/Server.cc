@@ -20,7 +20,8 @@ Server::Server(EventLoop *loop, int threadnum, int port)
       listenFd_(socket_bind_listen(port_)),
       acceptChannel_(new Channel(loop_, listenFd_)),
       idleFd_(::open("/dev/null", O_RDONLY | O_CLOEXEC)),
-      nextConnId_(1)
+      nextConnId_(1),
+      wheel_()
 {
   handle_for_sigpipe();
   if (setSocketNonBlocking(listenFd_) < 0)
@@ -32,8 +33,11 @@ Server::Server(EventLoop *loop, int threadnum, int port)
   setConnectionCallback(std::bind(&Server::onConnection, this, _1));
   setMessageCallback(std::bind(&Server::onMessage, this, _1, _2));
 
+  loop_->clock(1.0, std::bind(&Server::onTimer, this));
+
   char buf[256];
-  if(!getcwd(buf,sizeof buf)){
+  if (!getcwd(buf, sizeof buf))
+  {
     LOG_FATAL << "getcwd failed";
   }
   path_.assign(buf);
@@ -70,13 +74,7 @@ void Server::handNewConn()
     std::string conn_name = "HTTPConnection" + std::to_string(nextConnId_);
     nextConnId_++;
     LOG_INFO << "New connection from " << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port);
-    /*
-        // TCP的保活机制默认是关闭的
-        int optval = 0;
-        socklen_t len_optval = 4;
-        getsockopt(accept_fd, SOL_SOCKET,  SO_KEEPALIVE, &optval, &len_optval);
-        cout << "optval ==" << optval << endl;
-        */
+
     // 设为非阻塞模式
     if (setSocketNonBlocking(accept_fd) < 0)
     {
@@ -85,7 +83,6 @@ void Server::handNewConn()
     }
 
     setSocketNodelay(accept_fd);
-    //setSocketNoLinger(accept_fd);
 
     EventLoop *ioloop = eventLoopThreadPool_->getNextLoop();
     HTTPConnectionPtr conn(new HTTPConnection(ioloop, conn_name, accept_fd));
@@ -110,7 +107,6 @@ void Server::handNewConn()
 
 void Server::removeConnection(const HTTPConnectionPtr &conn)
 {
-  // FIXME: unsafe
   loop_->runInLoop(std::bind(&Server::removeConnectionInLoop, this, conn));
 }
 
@@ -127,30 +123,47 @@ void Server::removeConnectionInLoop(const HTTPConnectionPtr &conn)
 
 void Server::onConnection(const HTTPConnectionPtr &conn)
 {
-  LOG_INFO << "Server Connecting new one";
+  if (conn->connected())
+  {
+    NodePtr node(new Node(conn));
+    wheel_.last().insert(node);
+    WeakNodePtr weakNode(node);
+    conn->setNode(weakNode);
+  }
+  else
+  {
+    // assert(!conn->getNode().expired());
+    LOG_INFO << "Node use_count = " << conn->getNode().use_count();
+  }
 }
 
 void Server::onMessage(const HTTPConnectionPtr &conn, Buffer *buf)
 {
   if (!conn->httpanalysis_.parseRequest(buf))
   {
-    if(conn->httpanalysis_.version() == HTTP_10){
+    if (conn->httpanalysis_.version() == HTTP_10)
+    {
       conn->send("HTTP/1.0 400 Bad Request\r\n\r\n");
     }
-    else{
+    else
+    {
       conn->send("HTTP/1.1 400 Bad Request\r\n\r\n");
-    } 
+    }
     conn->shutdown();
+    return;
   }
-  if(!conn->httpanalysis_.findFile(path_))
+  if (!conn->httpanalysis_.findFile(path_))
   {
-    if(conn->httpanalysis_.version() == HTTP_10){
+    if (conn->httpanalysis_.version() == HTTP_10)
+    {
       conn->send("HTTP/1.0 404 Not Found!\r\n\r\n");
     }
-    else{
+    else
+    {
       conn->send("HTTP/1.1 400 Not Found!\r\n\r\n");
-    } 
+    }
     conn->shutdown();
+    return;
   }
 
   if (conn->httpanalysis_.gotAll())
@@ -159,5 +172,18 @@ void Server::onMessage(const HTTPConnectionPtr &conn, Buffer *buf)
     conn->httpanalysis_.appendToBuffer(&buf);
     conn->send(&buf);
     conn->httpanalysis_.reset();
+
+    // assert(!conn->getNode().expired());
+    WeakNodePtr weakNode = conn->getNode();
+    NodePtr node(weakNode.lock());
+    if (node)
+    {
+      wheel_.last().insert(node);
+    }
   }
+}
+
+void Server::onTimer()
+{
+  wheel_.push(Bucket());
 }

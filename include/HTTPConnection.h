@@ -5,6 +5,8 @@
 #include "Callbacks.h"
 #include "Buffer.h"
 #include "HttpAnalysis.h"
+#include "Server.h"
+#include "CircularBuffer.h"
 
 #include <memory>
 
@@ -32,11 +34,21 @@ public:
   void connectionEstablished(); // Server新建HTTPConnection时调用
   void connectionDestroyed();   // Server关闭HTTPConnection时调用
   const std::string name() const { return name_; }
+  bool connected() const { return state_ == KConnected; }
   EventLoop *getLoop() const { return loop_; }
 
   void send(const std::string &message);
   void send(Buffer* message);
   void shutdown();
+
+  void setNode(WeakNodePtr ptr)
+  {
+    node_ = ptr;
+  }
+  WeakNodePtr getNode()
+  {
+    return node_;
+  }
 
   HttpAnalysis httpanalysis_;
 
@@ -67,6 +79,7 @@ private:
   CloseCallback closeCallback_;
   Buffer inputBuffer_;
   Buffer outputBuffer_;
+  WeakNodePtr node_;
 };
 
 #endif

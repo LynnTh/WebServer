@@ -4,6 +4,7 @@
 #include "noncopyable.h"
 #include "CurrentThread.h"
 #include "Mutex.h"
+#include "Callbacks.h"
 
 #include <memory>
 #include <vector>
@@ -11,6 +12,7 @@
 
 class Channel;
 class EPoller;
+class Timer;
 
 class EventLoop : noncopyable
 {
@@ -40,6 +42,8 @@ public:
   void queueInLoop(Functor cb);
   void runInLoop(Functor cb);
 
+  int clock(double interval, TimerCallback cb);
+
 private:
   typedef std::vector<std::shared_ptr<Channel>> ChannelList;
 
@@ -51,6 +55,7 @@ private:
   bool callingPendingFunctors_;
   const pid_t threadId_;
   std::unique_ptr<EPoller> poller_;
+  std::unique_ptr<Timer> timer_;
   int WakeupFd_;
   std::shared_ptr<Channel> wakeupChannel_;
   ChannelList activeChannels_;
