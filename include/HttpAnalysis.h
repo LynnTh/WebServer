@@ -91,7 +91,7 @@ public:
   }
 
   bool parseRequest(Buffer *buf);
-  bool findFile(std::string path);
+  bool findFile();
 
   // 发送
   void appendToBuffer(Buffer *buf);

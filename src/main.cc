@@ -15,7 +15,7 @@ int main()
   Logger::setLogFileName(logPath);
   LOG_INFO << "main start.";
   EventLoop loop;
-  Server server(&loop,1,1234);
+  Server server(&loop,2,1234);
   server.start();
   loop.loop();
 

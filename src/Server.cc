@@ -35,13 +35,13 @@ Server::Server(EventLoop *loop, int threadnum, int port)
 
   loop_->clock(1.0, std::bind(&Server::onTimer, this));
 
-  char buf[256];
-  if (!getcwd(buf, sizeof buf))
-  {
-    LOG_FATAL << "getcwd failed";
-  }
-  path_.assign(buf);
-  path_ += "/";
+  // char buf[256];
+  // if (!getcwd(buf, sizeof buf))
+  // {
+  //   LOG_FATAL << "getcwd failed";
+  // }
+  // path_.assign(buf);
+  // path_ += "/";
 }
 
 Server::~Server()
@@ -132,7 +132,6 @@ void Server::onConnection(const HTTPConnectionPtr &conn)
   }
   else
   {
-    // assert(!conn->getNode().expired());
     LOG_INFO << "Node use_count = " << conn->getNode().use_count();
   }
 }
@@ -152,7 +151,7 @@ void Server::onMessage(const HTTPConnectionPtr &conn, Buffer *buf)
     conn->shutdown();
     return;
   }
-  if (!conn->httpanalysis_.findFile(path_))
+  if (!conn->httpanalysis_.findFile())
   {
     if (conn->httpanalysis_.version() == HTTP_10)
     {
@@ -160,7 +159,7 @@ void Server::onMessage(const HTTPConnectionPtr &conn, Buffer *buf)
     }
     else
     {
-      conn->send("HTTP/1.1 400 Not Found!\r\n\r\n");
+      conn->send("HTTP/1.1 404 Not Found!\r\n\r\n");
     }
     conn->shutdown();
     return;
@@ -173,7 +172,6 @@ void Server::onMessage(const HTTPConnectionPtr &conn, Buffer *buf)
     conn->send(&buf);
     conn->httpanalysis_.reset();
 
-    // assert(!conn->getNode().expired());
     WeakNodePtr weakNode = conn->getNode();
     NodePtr node(weakNode.lock());
     if (node)

@@ -28,6 +28,9 @@ void MimeType::init()
   mime[".png"] = "image/png";
   mime[".txt"] = "text/plain";
   mime[".mp3"] = "audio/mp3";
+  mime[".css"] = "text/css";
+  mime[".js"] = "application/x-javascript";
+  mime[".ttf"] = "application/octet-stream";
   mime["default"] = "text/html";
 }
 
@@ -121,7 +124,7 @@ bool HttpAnalysis::processRequestLine(const char *begin, const char *end)
       {
         setPath(start, space);
       }
-      size_t pos = message_.path_.rfind("/");
+      size_t pos = message_.path_.find("/");
       std::string filename = message_.path_.substr(pos + 1);
       if (filename.empty())
       {
@@ -225,10 +228,10 @@ bool HttpAnalysis::parseRequest(Buffer *buf)
   return ok;
 }
 
-bool HttpAnalysis::findFile(std::string path)
+bool HttpAnalysis::findFile()
 {
   struct stat sbuf;
-  std::string fullpath = path + message_.filename_;
+  std::string fullpath = message_.filename_;
   if (stat(fullpath.c_str(), &sbuf) < 0)
   {
     return false;

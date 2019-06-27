@@ -56,7 +56,7 @@ private:
   int idleFd_;
   int nextConnId_;
   ConnectionMap connections_;
-  std::string path_;
+  // std::string path_;
   TimeWheel wheel_;
 };
 
