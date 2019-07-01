@@ -8,9 +8,9 @@
 ## Introduction
 本项目是基于C++11开发的Web服务器。本项目支持http协议，解析了get、head请求，仅支持静态网页，支持http长连接；本项目还实现了异步日志，记录服务器程序的运行过程。
 
-| Section Ⅰ | Section Ⅱ  | Section Ⅲ  |
-| --------- | ---------- | ---------- |
-| [模型解析](https://github.com/LynnTh/WebServer/blob/master/%E6%A8%A1%E5%9E%8B%E8%A7%A3%E6%9E%90.md)  | [技术点解析](https://github.com/LynnTh/WebServer/blob/master/%E6%8A%80%E6%9C%AF%E7%82%B9%E8%A7%A3%E6%9E%90.md) | 存在的问题 |
+| Section Ⅰ | Section Ⅱ  |
+| --------- | ---------- |
+| [模型解析](https://github.com/LynnTh/WebServer/blob/master/%E6%A8%A1%E5%9E%8B%E8%A7%A3%E6%9E%90.md)  | [技术点解析](https://github.com/LynnTh/WebServer/blob/master/%E6%8A%80%E6%9C%AF%E7%82%B9%E8%A7%A3%E6%9E%90.md) |
 
 ## Environment
 - 运行环境：Ubuntu 16.04
