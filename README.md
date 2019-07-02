@@ -24,7 +24,9 @@
 
 ## Usage
 
-将网页文件放在程序目录下，在该目录下运行程序
+```sh
+./webserver [-t thread_numbers] [-p port]
+```
 
 ## Technique Point
 - 采用Reactor + 非阻塞IO + 线程池的并发模型
