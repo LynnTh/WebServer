@@ -26,6 +26,7 @@ HTTPConnection::HTTPConnection(EventLoop *loop, std::string name, int sockfd)
 HTTPConnection::~HTTPConnection()
 {
   LOG_INFO << "HTTPConnection " << name_ << "closed.";
+  close(acceptfd_);
   assert(state_ == KDisconnected);
 }
 
