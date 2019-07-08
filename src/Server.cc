@@ -34,14 +34,6 @@ Server::Server(EventLoop *loop, int threadnum, int port)
   setMessageCallback(std::bind(&Server::onMessage, this, _1, _2));
 
   loop_->clock(1.0, std::bind(&Server::onTimer, this));
-
-  // char buf[256];
-  // if (!getcwd(buf, sizeof buf))
-  // {
-  //   LOG_FATAL << "getcwd failed";
-  // }
-  // path_.assign(buf);
-  // path_ += "/";
 }
 
 Server::~Server()
