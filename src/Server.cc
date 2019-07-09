@@ -20,8 +20,8 @@ Server::Server(EventLoop *loop, int threadnum, int port)
       listenFd_(socket_bind_listen(port_)),
       acceptChannel_(new Channel(loop_, listenFd_)),
       idleFd_(::open("/dev/null", O_RDONLY | O_CLOEXEC)),
-      nextConnId_(1),
-      wheel_()
+      nextConnId_(1)
+      // wheel_()
 {
   handle_for_sigpipe();
   if (setSocketNonBlocking(listenFd_) < 0)
@@ -33,7 +33,7 @@ Server::Server(EventLoop *loop, int threadnum, int port)
   setConnectionCallback(std::bind(&Server::onConnection, this, _1));
   setMessageCallback(std::bind(&Server::onMessage, this, _1, _2));
 
-  loop_->clock(1.0, std::bind(&Server::onTimer, this));
+  // loop_->clock(1.0, std::bind(&Server::onTimer, this));
 }
 
 Server::~Server()
@@ -115,17 +115,17 @@ void Server::removeConnectionInLoop(const HTTPConnectionPtr &conn)
 
 void Server::onConnection(const HTTPConnectionPtr &conn)
 {
-  if (conn->connected())
-  {
-    NodePtr node(new Node(conn));
-    wheel_.last().insert(node);
-    WeakNodePtr weakNode(node);
-    conn->setNode(weakNode);
-  }
-  else
-  {
-    LOG_INFO << "Node use_count = " << conn->getNode().use_count();
-  }
+  // if (conn->connected())
+  // {
+  //   NodePtr node(new Node(conn));
+  //   wheel_.last().insert(node);
+  //   WeakNodePtr weakNode(node);
+  //   conn->setNode(weakNode);
+  // }
+  // else
+  // {
+  //   LOG_INFO << "Node use_count = " << conn->getNode().use_count();
+  // }
 }
 
 void Server::onMessage(const HTTPConnectionPtr &conn, Buffer *buf)
@@ -164,16 +164,17 @@ void Server::onMessage(const HTTPConnectionPtr &conn, Buffer *buf)
     conn->send(&buf);
     conn->httpanalysis_.reset();
 
-    WeakNodePtr weakNode = conn->getNode();
-    NodePtr node(weakNode.lock());
-    if (node)
-    {
-      wheel_.last().insert(node);
-    }
+    conn->shutdown();
+    // WeakNodePtr weakNode = conn->getNode();
+    // NodePtr node(weakNode.lock());
+    // if (node)
+    // {
+    //   wheel_.last().insert(node);
+    // }
   }
 }
 
-void Server::onTimer()
-{
-  wheel_.push(Bucket());
-}
+// void Server::onTimer()
+// {
+//   wheel_.push(Bucket());
+// }

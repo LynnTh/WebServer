@@ -6,7 +6,7 @@
 #include "Buffer.h"
 #include "HttpAnalysis.h"
 #include "Server.h"
-#include "CircularBuffer.h"
+// #include "CircularBuffer.h"
 
 #include <memory>
 
@@ -41,14 +41,14 @@ public:
   void send(Buffer* message);
   void shutdown();
 
-  void setNode(WeakNodePtr ptr)
-  {
-    node_ = ptr;
-  }
-  WeakNodePtr getNode()
-  {
-    return node_;
-  }
+  // void setNode(WeakNodePtr ptr)
+  // {
+  //   node_ = ptr;
+  // }
+  // WeakNodePtr getNode()
+  // {
+  //   return node_;
+  // }
 
   HttpAnalysis httpanalysis_;
 
@@ -79,7 +79,7 @@ private:
   CloseCallback closeCallback_;
   Buffer inputBuffer_;
   Buffer outputBuffer_;
-  WeakNodePtr node_;
+  // WeakNodePtr node_;
 };
 
 #endif

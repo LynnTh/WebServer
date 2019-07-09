@@ -6,7 +6,7 @@
 #include "Channel.h"
 #include "EventLoop.h"
 #include "EventLoopThreadPool.h"
-#include "CircularBuffer.h"
+// #include "CircularBuffer.h"
 
 #include <memory>
 #include <map>
@@ -57,7 +57,7 @@ private:
   int nextConnId_;
   ConnectionMap connections_;
   // std::string path_;
-  TimeWheel wheel_;
+  // TimeWheel wheel_;
 };
 
 #endif
