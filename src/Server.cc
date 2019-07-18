@@ -89,7 +89,7 @@ void Server::handNewConn()
     LOG_INFO << "accept_fd error";
     if (errno == EMFILE)
     {
-      ::close(accept_fd);
+      ::close(idleFd_);
       idleFd_ = accept(accept_fd, NULL, NULL);
       ::close(idleFd_);
       idleFd_ = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
