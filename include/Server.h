@@ -6,14 +6,14 @@
 #include "Channel.h"
 #include "EventLoop.h"
 #include "EventLoopThreadPool.h"
-// #include "CircularBuffer.h"
+#include "Timestamp.h"
+#include "HTTPConnection.h"
 
 #include <memory>
 #include <map>
 #include <unordered_set>
 
 class EventLoopThreadPool;
-class HTTPConnection;
 
 /*
     在main函数中手动loop
@@ -21,7 +21,7 @@ class HTTPConnection;
 class Server : noncopyable
 {
 public:
-  Server(EventLoop *loop, int threadnum, int port);
+  Server(EventLoop *loop, int threadnum, int port, int idleSeconds);
   ~Server();
   void start();
   void handNewConn();
@@ -56,8 +56,9 @@ private:
   int idleFd_;
   int nextConnId_;
   ConnectionMap connections_;
-  // std::string path_;
-  // TimeWheel wheel_;
+  int idleSeconds_;
+  WeakConnectionList connectionList_;
+  MutexLock mutex_;
 };
 
 #endif

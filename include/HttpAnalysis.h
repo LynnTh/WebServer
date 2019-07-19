@@ -1,19 +1,10 @@
-#ifndef HTTPANALYSIS_H
-#define HTTPANALYSIS_H
+#ifndef HttpAnalysis_H
+#define HttpAnalysis_H
 
-#include "noncopyable.h"
-
-#include <string>
-#include <map>
 #include <unordered_map>
-#include <string.h>
+#include <string>
 
-enum HttpRequestParseState
-{
-  kExpectRequestLine,
-  kExpectHeaders,
-  kGotAll,
-};
+class Buffer;
 
 enum HttpMethod
 {
@@ -21,119 +12,117 @@ enum HttpMethod
   METHOD_HEAD,
   METHOD_INVALID
 };
-
 enum HttpVersion
 {
   HTTP_10 = 0,
-  HTTP_11 = 1
+  HTTP_11 = 1,
+  UNKNOWN
 };
 
-struct HttpMessage
+class HttpMessage
 {
+public:
+  HttpMessage()
+      : method_(METHOD_INVALID),
+        version_(UNKNOWN)
+  {
+  }
+
+  void setVersion(HttpVersion v)
+  {
+    version_ = v;
+  }
+
+  HttpVersion getVersion() const
+  {
+    return version_;
+  }
+
+  bool setMethod(const char *begin, const char *end);
+
+  HttpMethod method() const
+  {
+    return method_;
+  }
+
+  void setfilepath(const char *start, const char *end)
+  {
+    if (start == end)
+    {
+      filepath_ = "index.html";
+      return;
+    }
+    filepath_.assign(start, end);
+  }
+
+  const std::string &filepath() const
+  {
+    return filepath_;
+  }
+
+  void setQuery(const char *start, const char *end)
+  {
+    query_.assign(start, end);
+  }
+
+  const std::string &query() const
+  {
+    return query_;
+  }
+
+  void addHeader(const char *start, const char *colon, const char *end);
+  std::string getHeader(const std::string &field) const;
+
+  void swap(HttpMessage &that);
+
+private:
   HttpMethod method_;
   HttpVersion version_;
-  std::string path_;
-  std::string filename_;
+  std::string filepath_;
   std::string query_;
-  bool keep_alive_;
+  std::unordered_map<std::string, std::string> headers_;
 };
 
-enum HttpStatusCode
-{
-  kUnknown,
-  k200Ok = 200,
-  k301MovedPermanently = 301,
-  k400BadRequest = 400,
-  k404NotFound = 404,
-};
-
-class Buffer;
-
-class MimeType
-{
-private:
-    static void init();
-    static std::unordered_map<std::string, std::string> mime;
-    MimeType();
-    MimeType(const MimeType &m);
-
-public:
-    static std::string getMime(const std::string &suffix);
-
-private:
-    static pthread_once_t once_control;
-};
-
-class HttpAnalysis : noncopyable
+class HttpAnalysis
 {
 public:
-  HttpAnalysis();
-  ~HttpAnalysis();
+  enum HttpRequestParseState
+  {
+    IWantRequestLine,
+    IWantHeaders,
+    IWantBody,
+    ImOK
+  };
 
-  // 接收
-  void reset()
+  HttpAnalysis()
+      : state_(IWantRequestLine)
   {
-    state_ = kExpectRequestLine;
-    memset(&message_, 0, sizeof(HttpMessage));
-    receiveHeaders_.clear();
   }
-  const HttpMessage &message()
-  {
-    return message_;
-  }
+
   bool gotAll() const
   {
-    return state_ == kGotAll;
+    return state_ == ImOK;
   }
-  const HttpVersion version()
+
+  void reset()
   {
-    return message_.version_;
+    state_ = IWantRequestLine;
+    HttpMessage dummy;
+    request_.swap(dummy);
+  }
+
+  HttpMessage& getRequest()
+  {
+    return request_;
   }
 
   bool parseRequest(Buffer *buf);
-  bool findFile();
-
-  // 发送
-  void appendToBuffer(Buffer *buf);
-  void setContentType(const std::string &contentType)
-  {
-    addHeader("Content-Type", contentType);
-  }
-  void addHeader(const std::string &key, const std::string &value)
-  {
-    sendHeaders_[key] = value;
-  }
-  void setStatusCode(HttpStatusCode code)
-  {
-    statusCode_ = code;
-  }
-  // void setCloseConnection(bool on)
-  // {
-  //   closeConnection_ = on;
-  // }
-  bool analysis(const HttpMessage &message);
 
 private:
-  // 接收
   bool processRequestLine(const char *begin, const char *end);
-  bool setMethod(const char *begin, const char *end);
-  void setPath(const char *begin, const char *end);
-  void setFilename(const std::string &filename);
-  void setQuery(const char *begin, const char *end);
-  void setVersion(HttpVersion version);
-  void setAlive();
-  void addHeader(const char *start, const char *colon, const char *end);
-
-  // 发送
-  std::string makeStatueMessage(HttpStatusCode code);
 
   HttpRequestParseState state_;
-  HttpMessage message_;
-  std::map<std::string, std::string> receiveHeaders_;
-
-  std::map<std::string, std::string> sendHeaders_;
-  HttpStatusCode statusCode_;
-  std::string body_;
+  HttpMessage request_;
 };
 
 #endif

@@ -13,7 +13,8 @@ HTTPConnection::HTTPConnection(EventLoop *loop, std::string name, int sockfd)
       state_(kConnecting),
       acceptfd_(sockfd),
       channel_(new Channel(loop_, sockfd)),
-      inputBuffer_()
+      inputBuffer_(),
+      outputBuffer_()
 {
   channel_->setReadCallback(
       std::bind(&HTTPConnection::handleRead, this));
@@ -57,7 +58,6 @@ void HTTPConnection::handleClose()
   setState(KDisconnected);
   channel_->disableAll();
   HTTPConnectionPtr guardThis(shared_from_this());
-  connectionCallback_(guardThis);
   closeCallback_(guardThis);
 }
 
@@ -78,8 +78,6 @@ void HTTPConnection::connectionDestroyed()
   {
     setState(KDisconnected);
     channel_->disableAll();
-
-    connectionCallback_(shared_from_this());
   }
   channel_->remove();
 }
@@ -99,6 +97,33 @@ void HTTPConnection::shutdownInLoop()
   if (::shutdown(acceptfd_, SHUT_WR) < 0)
   {
     LOG_INFO << "sockets::shutdownWrite error";
+  }
+}
+
+void HTTPConnection::forceClose()
+{
+  if (state_ == KConnected || state_ == KDisconnecting)
+  {
+    setState(KDisconnecting);
+    loop_->queueInLoop(std::bind(&HTTPConnection::forceCloseInLoop, shared_from_this()));
+  }
+}
+
+void HTTPConnection::forceCloseWithDelay(double seconds)
+{
+  if (state_ == KConnected || state_ == KDisconnecting)
+  {
+    setState(KDisconnecting);
+    loop_->runAfter(seconds, makeWeakCallback(shared_from_this(), &HTTPConnection::forceClose));
+  }
+}
+
+void HTTPConnection::forceCloseInLoop()
+{
+  loop_->assertInLoopThread();
+  if (state_ == KConnected || state_ == KDisconnecting)
+  {
+    handleClose();
   }
 }
 

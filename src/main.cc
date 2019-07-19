@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
   Logger::setLogFileName(logPath);
   LOG_INFO << "main start.";
   EventLoop loop;
-  Server server(&loop, threadnums, port);
+  Server server(&loop, threadnums, port, 8);
   server.start();
   loop.loop();
 

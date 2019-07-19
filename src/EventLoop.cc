@@ -151,6 +151,17 @@ void EventLoop::doPendingFunctors()
   callingPendingFunctors_ = false;
 }
 
+int EventLoop::runAt(Timestamp time, TimerCallback cb)
+{
+  return timer_->addTimer(std::move(cb), time, 0.0);
+}
+
+int EventLoop::runAfter(double delay, TimerCallback cb)
+{
+  Timestamp time(addTime(Timestamp::now(), delay));
+  return runAt(time, std::move(cb));
+}
+
 int EventLoop::clock(double interval, TimerCallback cb)
 {
   Timestamp time(addTime(Timestamp::now(), interval));

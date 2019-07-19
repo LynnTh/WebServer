@@ -13,7 +13,7 @@ cd build \
     && make
 
 cd $SOURCE_DIR
-if [ ! -f "bin" ]; then
+if [ ! -d "bin" ]; then
     mkdir bin
 fi
 

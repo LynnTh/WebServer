@@ -1,7 +1,7 @@
 #include "Server.h"
 #include "Utile.h"
 #include "Logging.h"
-#include "HTTPConnection.h"
+#include "HttpResponse.h"
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -11,7 +11,7 @@
 #include <errno.h>
 #include <string>
 
-Server::Server(EventLoop *loop, int threadnum, int port)
+Server::Server(EventLoop *loop, int threadnum, int port, int idleSeconds)
     : loop_(loop),
       threadnum_(threadnum),
       eventLoopThreadPool_(new EventLoopThreadPool(loop_, threadnum_)),
@@ -20,8 +20,8 @@ Server::Server(EventLoop *loop, int threadnum, int port)
       listenFd_(socket_bind_listen(port_)),
       acceptChannel_(new Channel(loop_, listenFd_)),
       idleFd_(::open("/dev/null", O_RDONLY | O_CLOEXEC)),
-      nextConnId_(1)
-      // wheel_()
+      nextConnId_(1),
+      idleSeconds_(idleSeconds)
 {
   handle_for_sigpipe();
   if (setSocketNonBlocking(listenFd_) < 0)
@@ -32,8 +32,7 @@ Server::Server(EventLoop *loop, int threadnum, int port)
   acceptChannel_->enableReading();
   setConnectionCallback(std::bind(&Server::onConnection, this, _1));
   setMessageCallback(std::bind(&Server::onMessage, this, _1, _2));
-
-  // loop_->clock(1.0, std::bind(&Server::onTimer, this));
+  loop_->clock(1.0, std::bind(&Server::onTimer, this));
 }
 
 Server::~Server()
@@ -115,24 +114,34 @@ void Server::removeConnectionInLoop(const HTTPConnectionPtr &conn)
 
 void Server::onConnection(const HTTPConnectionPtr &conn)
 {
-  // if (conn->connected())
-  // {
-  //   NodePtr node(new Node(conn));
-  //   wheel_.last().insert(node);
-  //   WeakNodePtr weakNode(node);
-  //   conn->setNode(weakNode);
-  // }
-  // else
-  // {
-  //   LOG_INFO << "Node use_count = " << conn->getNode().use_count();
-  // }
+  if (conn->connected())
+  {
+    Node node;
+    node.lastReceiveTime = Timestamp::now();
+    {
+      MutexLockGuard lock(mutex_);
+      connectionList_.push_back(conn);
+      node.position = --connectionList_.end();
+    }
+    conn->setNode(node);
+  }
+  else
+  {
+    const Node &node = conn->getNode();
+    {
+      MutexLockGuard lock(mutex_);
+      connectionList_.erase(node.position);
+    }    
+  }
 }
 
 void Server::onMessage(const HTTPConnectionPtr &conn, Buffer *buf)
 {
-  if (!conn->httpanalysis_.parseRequest(buf))
+  HttpAnalysis &ana = conn->getAnalysis();
+  HttpMessage &request = ana.getRequest();
+  if (!ana.parseRequest(buf))
   {
-    if (conn->httpanalysis_.version() == HTTP_10)
+    if (request.getVersion() == HTTP_10)
     {
       conn->send("HTTP/1.0 400 Bad Request\r\n\r\n");
     }
@@ -141,11 +150,16 @@ void Server::onMessage(const HTTPConnectionPtr &conn, Buffer *buf)
       conn->send("HTTP/1.1 400 Bad Request\r\n\r\n");
     }
     conn->shutdown();
+    conn->forceCloseWithDelay(3.5);
     return;
   }
-  if (!conn->httpanalysis_.findFile())
+  const std::string &connection = request.getHeader("Connection");
+  bool close = connection == "close" ||
+               (request.getVersion() == HTTP_10 && connection != "Keep-Alive");
+  HttpResponse response(close);
+  if (!response.findFile(request))
   {
-    if (conn->httpanalysis_.version() == HTTP_10)
+    if (request.getVersion() == HTTP_10)
     {
       conn->send("HTTP/1.0 404 Not Found!\r\n\r\n");
     }
@@ -154,27 +168,74 @@ void Server::onMessage(const HTTPConnectionPtr &conn, Buffer *buf)
       conn->send("HTTP/1.1 404 Not Found!\r\n\r\n");
     }
     conn->shutdown();
+    conn->forceCloseWithDelay(3.5);
     return;
   }
 
-  if (conn->httpanalysis_.gotAll())
+  if (ana.gotAll())
   {
     Buffer buf;
-    conn->httpanalysis_.appendToBuffer(&buf);
+    response.appendToBuffer(&buf, request);
     conn->send(&buf);
-    conn->httpanalysis_.reset();
-
-    conn->shutdown();
-    // WeakNodePtr weakNode = conn->getNode();
-    // NodePtr node(weakNode.lock());
-    // if (node)
-    // {
-    //   wheel_.last().insert(node);
-    // }
+    if (response.closeConnection())
+    {
+      const Node &node = conn->getNode();
+      {
+        MutexLockGuard lock(mutex_);
+        connectionList_.erase(node.position);
+      }
+      conn->shutdown();
+      conn->forceCloseWithDelay(3.5);
+    }
+    else
+    {
+      Node &node = conn->getNode();
+      node.lastReceiveTime = Timestamp::now();
+      {
+        MutexLockGuard lock(mutex_);
+        connectionList_.splice(connectionList_.end(), connectionList_, node.position);
+        assert(node.position == --connectionList_.end());
+      }
+    }
   }
 }
 
-// void Server::onTimer()
-// {
-//   wheel_.push(Bucket());
-// }
+void Server::onTimer()
+{
+  Timestamp now = Timestamp::now();
+  MutexLockGuard lock(mutex_);
+  for (WeakConnectionList::iterator it = connectionList_.begin();
+       it != connectionList_.end();)
+  {
+    HTTPConnectionPtr conn = it->lock();
+    if (conn)
+    {
+      Node &n = conn->getNode();
+      double age = timeDifference(now, n.lastReceiveTime);
+      if (age > idleSeconds_)
+      {
+        if (conn->connected())
+        {
+          conn->shutdown();
+          // LOG_INFO << "shutting down " << conn->name();
+          conn->forceCloseWithDelay(3.5); // > round trip of the whole Internet.
+        }
+      }
+      else if (age < 0)
+      {
+        // LOG_WARN << "Time jump";
+        n.lastReceiveTime = now;
+      }
+      else
+      {
+        break;
+      }
+      ++it;
+    }
+    else
+    {
+      // LOG_WARN << "Expired";
+      it = connectionList_.erase(it);
+    }
+  }
+}

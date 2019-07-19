@@ -5,6 +5,7 @@
 #include "CurrentThread.h"
 #include "Mutex.h"
 #include "Callbacks.h"
+#include "Timestamp.h"
 
 #include <memory>
 #include <vector>
@@ -42,6 +43,8 @@ public:
   void queueInLoop(Functor cb);
   void runInLoop(Functor cb);
 
+  int runAt(Timestamp time, TimerCallback cb);
+  int runAfter(double delay, TimerCallback cb);
   int clock(double interval, TimerCallback cb);
 
 private:

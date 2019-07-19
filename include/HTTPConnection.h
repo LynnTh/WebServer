@@ -5,14 +5,22 @@
 #include "Callbacks.h"
 #include "Buffer.h"
 #include "HttpAnalysis.h"
-#include "Server.h"
-// #include "CircularBuffer.h"
+#include "Timestamp.h"
 
 #include <memory>
+#include <list>
 
 class EventLoop;
 class Channel;
-class Timestamp;
+
+typedef std::weak_ptr<HTTPConnection> WeakHTTPConnectionPtr;
+typedef std::list<WeakHTTPConnectionPtr> WeakConnectionList;
+
+struct Node
+{
+  Timestamp lastReceiveTime;
+  WeakConnectionList::iterator position;
+};
 
 class HTTPConnection : noncopyable, public std::enable_shared_from_this<HTTPConnection>
 {
@@ -38,19 +46,25 @@ public:
   EventLoop *getLoop() const { return loop_; }
 
   void send(const std::string &message);
-  void send(Buffer* message);
+  void send(Buffer *message);
+  void forceClose();
+  void forceCloseWithDelay(double seconds);
   void shutdown();
 
-  // void setNode(WeakNodePtr ptr)
-  // {
-  //   node_ = ptr;
-  // }
-  // WeakNodePtr getNode()
-  // {
-  //   return node_;
-  // }
+  HttpAnalysis &getAnalysis()
+  {
+    return httpanalysis_;
+  }
 
-  HttpAnalysis httpanalysis_;
+  void setNode(Node node)
+  {
+    node_ = node;
+  }
+
+  Node& getNode()
+  {
+    return node_;
+  }
 
 private:
   enum State
@@ -68,6 +82,7 @@ private:
   void sendInLoop_string(const std::string &message);
   void sendInLoop_void(const void* message, size_t len);
   void shutdownInLoop();
+  void forceCloseInLoop();
 
   EventLoop *loop_;
   const std::string name_;
@@ -79,7 +94,8 @@ private:
   CloseCallback closeCallback_;
   Buffer inputBuffer_;
   Buffer outputBuffer_;
-  // WeakNodePtr node_;
+  HttpAnalysis httpanalysis_;
+  Node node_;
 };
 
 #endif
